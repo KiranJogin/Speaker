@@ -1,66 +1,77 @@
 from app.services.diarization_service import diarize_audio
 from app.services.audio_utils import convert_to_wav_mono
 from app.services.align_service import assign_speaker_to_words, group_words_to_turns
-import whisper, torch, tempfile, os
+import whisper, torch, tempfile, os, datetime, subprocess
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = whisper.load_model("base", device=device)
 
+SAVE_ROOT = Path("saved_sessions")
+SAVE_ROOT.mkdir(exist_ok=True)
+
+def extract_audio_segment(input_path, start, end, output_path):
+    """Extract a specific audio segment (in seconds)."""
+    command = [
+        "ffmpeg", "-y",
+        "-i", input_path,
+        "-ss", str(start),
+        "-to", str(end),
+        "-c", "copy", output_path,
+    ]
+    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 async def transcribe_audio(file):
-    """
-    Transcribes and diarizes an uploaded audio file.
-    Returns both structured and formatted output.
-    """
-    # Save temp file
+    """Transcribe, diarize, and save each speaker's lines and audio."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
 
-    # Convert to mono WAV for consistency
     wav_path = convert_to_wav_mono(tmp_path)
-
-    # Whisper transcription with word timestamps
     result = model.transcribe(wav_path, word_timestamps=True)
 
-    # Extract word-level timestamps
     words = []
-    for segment in result["segments"]:
-        for w in segment.get("words", []):
-            words.append({
-                "word": w["word"],
-                "start": w["start"],
-                "end": w["end"]
-            })
+    for seg in result["segments"]:
+        for w in seg.get("words", []):
+            words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
 
-    # Run diarization
     speaker_segments = diarize_audio(wav_path)
-
-    # Align words with speakers
     aligned = assign_speaker_to_words(words, speaker_segments)
     turns = group_words_to_turns(aligned)
 
-    # --- New: Generate readable script ---
-    drama_script_lines = []
-    for turn in turns:
-        speaker = turn["speaker"]
-        text = turn["text"].strip()
-        # Capitalize first letter of sentence if needed
-        if text and text[0].islower():
-            text = text[0].upper() + text[1:]
-        drama_script_lines.append(f"{speaker}: {text}")
+    session_name = datetime.datetime.now().strftime("session_%Y-%m-%d_%H-%M-%S")
+    session_dir = SAVE_ROOT / session_name
+    session_dir.mkdir(parents=True, exist_ok=True)
 
-    drama_script = "\n\n".join(drama_script_lines)
+    full_text_path = session_dir / "full_transcript.txt"
+    with open(full_text_path, "w") as f:
+        for t in turns:
+            f.write(f"{t['speaker']}: {t['text']}\n\n")
 
-    # Cleanup temp files
+    for idx, t in enumerate(turns, start=1):
+        sp_dir = session_dir / t["speaker"]
+        sp_dir.mkdir(exist_ok=True)
+
+        txt_path = sp_dir / f"line_{idx:02d}.txt"
+        with open(txt_path, "w") as f:
+            f.write(t["text"])
+
+        audio_path = sp_dir / f"line_{idx:02d}.wav"
+        extract_audio_segment(wav_path, t["start"], t["end"], str(audio_path))
+        t["audio_path"] = f"/sessions/{session_name}/{t['speaker']}/line_{idx:02d}.wav"
+
+    script_lines = [f"{t['speaker']}: {t['text']}" for t in turns]
+    drama_script = "\n\n".join(script_lines)
+
     os.remove(tmp_path)
     if os.path.exists(wav_path):
         os.remove(wav_path)
 
-    # Return both machine-readable and formatted text
     return {
         "status": "success",
+        "session": session_name,
         "transcription": turns,
-        "formatted_script": drama_script
+        "formatted_script": drama_script,
     }
