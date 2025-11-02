@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Speaker Diarization + Transcription</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🎭 Speaker Diarization + Transcription</h1>
+    <p>Upload an audio file and see who said what — formatted like a drama!</p>
+
+    <form id="upload-form">
+      <input type="file" id="file-input" accept="audio/*" required />
+      <button type="submit">Transcribe</button>
+    </form>
+
+    <div id="loading" class="hidden">Processing... please wait ⏳</div>
+
+    <div id="output" class="hidden">
+      <h2>Transcription Result</h2>
+      <pre id="script-output"></pre>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

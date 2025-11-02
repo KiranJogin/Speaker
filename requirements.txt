@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pyannote.audio
+openai-whisper
+whisperx
+librosa
+soundfile
+numpy
+pandas
+python-multipart
+ffmpeg-python
