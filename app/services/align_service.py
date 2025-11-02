@@ -16,7 +16,6 @@ def assign_speaker_to_words(words, speaker_segments, margin=0.3):
                 speaker = seg["speaker"]
                 break
 
-        # Fallback: choose nearest segment by start time
         if speaker == "Unknown" and speaker_segments:
             closest = min(speaker_segments, key=lambda s: abs(s["start"] - w_start))
             speaker = closest["speaker"]
@@ -31,9 +30,7 @@ def assign_speaker_to_words(words, speaker_segments, margin=0.3):
 
 
 def group_words_to_turns(word_segments, merge_gap=0.5):
-    """
-    Merge consecutive words spoken by the same speaker into one sentence/turn.
-    """
+    """Merge consecutive words by the same speaker into a single line."""
     turns = []
     if not word_segments:
         return turns
@@ -44,10 +41,7 @@ def group_words_to_turns(word_segments, merge_gap=0.5):
     end_time = word_segments[0]["end"]
 
     for w in word_segments[1:]:
-        if (
-            w["speaker"] == current_speaker
-            and w["start"] - end_time <= merge_gap
-        ):
+        if w["speaker"] == current_speaker and w["start"] - end_time <= merge_gap:
             current_text.append(w["text"])
             end_time = w["end"]
         else:
