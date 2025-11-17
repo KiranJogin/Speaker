@@ -132,18 +132,3 @@ Built with **Streamlit** for the interface and leveraging powerful audio process
 - Speech-to-text & summaries per speaker
 - Automated transcription export
 
----
-
-## ⭐ Support
-If you find this project helpful, please consider giving a **star ⭐** on GitHub!
-
----
-
-## 🤝 Contributions
-Pull requests and ideas are welcome.  
-Feel free to open an issue for bugs, improvements, or collaboration.
-
----
-
-## 📜 License
-MIT License
